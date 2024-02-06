@@ -1,18 +1,22 @@
-# Create resource group, and an identity with contributor access that github can federate
-az group create -l CentralUS -n amla-k8s-aks-rg
+name: Deploy AKS-Construction
 
-app=($(az ad app create --display-name devops.git --query "[appId,id]" -o tsv | tr ' ' "\n"))
-spId=$(az ad sp create --id ${app[0]} --query id -o tsv )
-subId=$(az account show --query id -o tsv)
+on:
+  workflow_dispatch:
 
-az role assignment create --role owner --assignee-object-id  $spId --assignee-principal-type ServicePrincipal --scope /subscriptions/$subId/resourceGroups/amla-k8s-aks-rg
+permissions:
+      id-token: write
+      contents: read
 
-
-# Create a new federated identity credential
-az rest --method POST --uri "https://graph.microsoft.com/beta/applications/${app[1]}/federatedIdentityCredentials" --body "{\"name\":\"devops.git-main-gh\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"repo:govindarajulu-naidu-amla/devops.git:ref:refs/heads/main\",\"description\":\"Access to branch main\",\"audiences\":[\"api://AzureADTokenExchange\"]}"
-
-# Set Secrets
-gh secret set --repo https://github.com/govindarajulu-naidu-amla/devops.git AZURE_CLIENT_ID -b ${app[0]}
-gh secret set --repo https://github.com/govindarajulu-naidu-amla/devops.git AZURE_TENANT_ID -b $(az account show --query tenantId -o tsv)
-gh secret set --repo https://github.com/govindarajulu-naidu-amla/devops.git AZURE_SUBSCRIPTION_ID -b $subId
-gh secret set --repo https://github.com/govindarajulu-naidu-amla/devops.git USER_OBJECT_ID -b $spId
+jobs:
+  reusable_workflow_job:
+    uses: Azure/AKS-Construction/.github/workflows/AKSC_Deploy.yml@0.10.3
+    with:
+      templateVersion: 0.10.3
+      rg: amla-k8s-aks-rg
+      resourceName: amla-k8s-aks
+      templateParams: resourceName=amla-k8s-aks SystemPoolType=Standard availabilityZones=["1","2","3"]
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      USER_OBJECT_ID: ${{ secrets.USER_OBJECT_ID }}
