@@ -1,5 +1,5 @@
 # Create resource group, and an identity with contributor access that github can federate
-az group create -l centralus -n amla-k8s-aks-rg
+az group create -l CentralUS -n amla-k8s-aks-rg
 
 app=($(az ad app create --display-name devops.git --query "[appId,id]" -o tsv | tr ' ' "\n"))
 spId=$(az ad sp create --id ${app[0]} --query id -o tsv )
