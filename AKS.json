@@ -1,0 +1,32 @@
+# Create Resource Group
+az group create -l CentralUS -n amla-k8s-aks-rg
+
+# Deploy template with in-line parameters
+az deployment group create -g amla-k8s-aks-rg  --template-uri https://github.com/Azure/AKS-Construction/releases/download/0.10.3/main.json --parameters `
+	resourceName=amla-k8s-aks `
+	agentCount=1 `
+	upgradeChannel=patch `
+	JustUseSystemPool=true `
+	agentCountMax=20 `
+	custom_vnet=true `
+	enable_aad=true `
+	AksDisableLocalAccounts=true `
+	enableAzureRBAC=true `
+	adminPrincipalId=$(az ad signed-in-user show --query id --out tsv) `
+	privateLinks=true `
+	networkPolicy=azure `
+	azurepolicy=audit `
+	authorizedIPRanges='["101.0.63.232/32"]' `
+	keyVaultAksCSI=true `
+	keyVaultCreate=true `
+	keyVaultOfficerRolePrincipalId=$(az ad signed-in-user show --query id --out tsv) `
+	automationAccountScheduledStartStop=Weekday
+
+# Get credentials for your new AKS cluster & login (interactive)
+az aks get-credentials -g amla-k8s-aks-rg -n aks-amla-k8s-aks
+kubectl get nodes
+
+# Deploy charts into cluster
+& $([scriptblock]::Create((New-Object Net.WebClient).DownloadString("https://github.com/Azure/AKS-Construction/releases/download/0.10.3/postdeploy.ps1"))) -releace_version="https://github.com/Azure/AKS-Construction/releases/download/0.10.3" `
+	-ingress contour `
+	-monitor oss
